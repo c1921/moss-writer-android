@@ -11,7 +11,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-data class RemoteFile(val name: String, val lastModified: Long)
+data class RemoteFile(val name: String, val lastModified: Long, val isDirectory: Boolean = false)
 
 class WebDavClient(private val config: WebDavConfig) {
 
@@ -39,9 +39,13 @@ class WebDavClient(private val config: WebDavConfig) {
     }
 
     fun listRemoteFiles(): Result<List<RemoteFile>> = runCatching {
+        listRemoteFilesRecursive(projectUrl, "")
+    }
+
+    private fun listRemoteFilesRecursive(dirUrl: String, prefix: String): List<RemoteFile> {
         val propfindBody = PROPFIND_BODY.toRequestBody("application/xml".toMediaType())
         val request = Request.Builder()
-            .url(projectUrl)
+            .url(dirUrl)
             .method("PROPFIND", propfindBody)
             .header("Authorization", authHeader)
             .header("Depth", "1")
@@ -53,7 +57,17 @@ class WebDavClient(private val config: WebDavConfig) {
             }
             response.body?.string() ?: throw Exception("Empty response")
         }
-        parseMultistatus(responseBody)
+        val entries = parseMultistatus(responseBody, dirUrl)
+        val result = mutableListOf<RemoteFile>()
+        for (entry in entries) {
+            val fullName = if (prefix.isEmpty()) entry.name else "$prefix/${entry.name}"
+            if (entry.isDirectory) {
+                result += listRemoteFilesRecursive(dirUrl + entry.name + "/", fullName)
+            } else if (entry.name.endsWith(".md")) {
+                result.add(RemoteFile(fullName, entry.lastModified))
+            }
+        }
+        return result
     }
 
     fun downloadFile(name: String): Result<String> = runCatching {
@@ -93,6 +107,15 @@ class WebDavClient(private val config: WebDavConfig) {
         }
     }
 
+    fun ensureRemoteDir(relativePath: String) {
+        val segments = relativePath.split("/").filter { it.isNotBlank() }
+        var accumulated = ""
+        for (segment in segments) {
+            accumulated = if (accumulated.isEmpty()) segment else "$accumulated/$segment"
+            ensureDir(projectUrl + accumulated + "/")
+        }
+    }
+
     // 确保 MossWriter/ 和 MossWriter/{projectName}/ 目录存在，不存在则 MKCOL 创建
     private fun ensureProjectDirs() {
         ensureDir(mossWriterUrl)
@@ -125,8 +148,9 @@ class WebDavClient(private val config: WebDavConfig) {
         }
     }
 
-    private fun parseMultistatus(xml: String): List<RemoteFile> {
+    private fun parseMultistatus(xml: String, dirUrl: String): List<RemoteFile> {
         val results = mutableListOf<RemoteFile>()
+        val dirPath = java.net.URI(dirUrl).path  // e.g. /MossWriter/MyProject/folder/
         val parser = Xml.newPullParser()
         parser.setInput(xml.reader())
 
@@ -158,12 +182,14 @@ class WebDavClient(private val config: WebDavConfig) {
                         "href" -> inHref = false
                         "getlastmodified" -> inLastModified = false
                         "response" -> {
-                            if (inResponse && !isCollection) {
-                                val fileName = href.substringAfterLast('/').let {
-                                    java.net.URLDecoder.decode(it, "UTF-8")
-                                }
-                                if (fileName.endsWith(".md")) {
-                                    results.add(RemoteFile(fileName, lastModified))
+                            if (inResponse) {
+                                val decoded = java.net.URLDecoder.decode(href, "UTF-8")
+                                // Strip this directory's path to get the entry name
+                                val relative = decoded.trimEnd('/').removePrefix(dirPath.trimEnd('/'))
+                                    .trimStart('/')
+                                // Skip the directory itself (empty after stripping) and nested entries
+                                if (relative.isNotEmpty() && !relative.contains('/')) {
+                                    results.add(RemoteFile(relative, lastModified, isCollection))
                                 }
                             }
                             inResponse = false

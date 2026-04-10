@@ -15,7 +15,7 @@ class WebDavRepository(
         val remoteFiles = client.listRemoteFiles().getOrThrow()
             .associateBy { it.name }
 
-        val localFiles = localRepo.listFiles(projectName)
+        val localFiles = localRepo.listFilesRecursive(projectName)
             .associateBy { it.name }
 
         val allNames = (remoteFiles.keys + localFiles.keys).toSet()
@@ -31,6 +31,8 @@ class WebDavRepository(
                     localRepo.getFile(projectName, name).setLastModified(remote.lastModified)
                 }
                 remote == null && local != null -> {
+                    val parentPath = name.substringBeforeLast('/', "")
+                    if (parentPath.isNotEmpty()) client.ensureRemoteDir(parentPath)
                     val content = localRepo.readFile(projectName, name)
                     client.uploadFile(name, content).getOrThrow()
                 }
@@ -44,6 +46,8 @@ class WebDavRepository(
                             localRepo.getFile(projectName, name).setLastModified(remote.lastModified)
                         }
                         localModified > remoteModified -> {
+                            val parentPath = name.substringBeforeLast('/', "")
+                            if (parentPath.isNotEmpty()) client.ensureRemoteDir(parentPath)
                             val content = localRepo.readFile(projectName, name)
                             client.uploadFile(name, content).getOrThrow()
                         }

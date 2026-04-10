@@ -26,6 +26,11 @@ class FileListViewModel(
     private val _files = MutableStateFlow<List<NoteFile>>(emptyList())
     val files: StateFlow<List<NoteFile>> = _files
 
+    private val _currentPath = MutableStateFlow<List<String>>(emptyList())
+    val currentPath: StateFlow<List<String>> = _currentPath
+
+    val canNavigateUp: Boolean get() = _currentPath.value.isNotEmpty()
+
     private val _syncState = MutableStateFlow<SyncState>(SyncState.Idle)
     val syncState: StateFlow<SyncState> = _syncState
 
@@ -38,20 +43,51 @@ class FileListViewModel(
 
     fun loadFiles() {
         viewModelScope.launch(Dispatchers.IO) {
-            _files.value = localRepo.listFiles(projectName)
+            _files.value = localRepo.listEntries(projectName, _currentPath.value)
         }
     }
 
+    fun navigateInto(folderName: String) {
+        _currentPath.value = _currentPath.value + folderName
+        loadFiles()
+    }
+
+    fun navigateUp() {
+        if (_currentPath.value.isEmpty()) return
+        _currentPath.value = _currentPath.value.dropLast(1)
+        loadFiles()
+    }
+
+    fun navigateToIndex(index: Int) {
+        _currentPath.value = _currentPath.value.take(index + 1)
+        loadFiles()
+    }
+
+    fun fullFileRelativePath(name: String): String =
+        (_currentPath.value + name).joinToString("/")
+
     fun createFile(name: String): Boolean {
         val fileName = if (name.endsWith(".md")) name else "$name.md"
-        if (localRepo.fileExists(projectName, fileName)) return false
-        localRepo.writeFile(projectName, fileName, "")
+        if (localRepo.fileExists(projectName, _currentPath.value, fileName)) return false
+        localRepo.writeFile(projectName, _currentPath.value, fileName, "")
         loadFiles()
         return true
     }
 
+    fun createFolder(name: String): Boolean {
+        if (name.isBlank()) return false
+        val created = localRepo.createFolder(projectName, _currentPath.value, name)
+        if (created) loadFiles()
+        return created
+    }
+
     fun deleteFile(name: String) {
-        localRepo.deleteFile(projectName, name)
+        localRepo.deleteFile(projectName, _currentPath.value, name)
+        loadFiles()
+    }
+
+    fun deleteFolder(name: String) {
+        localRepo.deleteFolder(projectName, _currentPath.value + name)
         loadFiles()
     }
 

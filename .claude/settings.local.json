@@ -4,7 +4,9 @@
       "WebSearch",
       "Bash(./gradlew assembleDebug)",
       "Bash(\"/d/Android/Sdk/platform-tools/adb.exe\" -s emulator-5554 shell am start -n io.github.c1921.mosswriter/.MainActivity)",
-      "Bash(\"/d/Android/Sdk/platform-tools/adb.exe\" -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk)"
+      "Bash(\"/d/Android/Sdk/platform-tools/adb.exe\" -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk)",
+      "Bash(grep -E \"\\\\.\\(kt|xml|gradle|properties|md\\)$\")",
+      "Bash(find D:GitHubmoss-writer-android -not -path *.git* -not -path *.gradle* -not -path *.idea* -not -path *build* -type d)"
     ]
   }
 }
