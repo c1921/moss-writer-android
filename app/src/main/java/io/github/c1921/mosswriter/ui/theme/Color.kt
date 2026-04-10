@@ -2,10 +2,11 @@ package io.github.c1921.mosswriter.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Moss green palette
+val MossGreen80 = Color(0xFFB8D5B8)
+val MossGreenGrey80 = Color(0xFFBFCDBF)
+val MossTeal80 = Color(0xFFB2CCCC)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val MossGreen40 = Color(0xFF4A7A4A)
+val MossGreenGrey40 = Color(0xFF556655)
+val MossTeal40 = Color(0xFF3D6B6B)

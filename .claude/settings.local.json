@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(./gradlew assembleDebug)",
+      "Bash(\"/d/Android/Sdk/platform-tools/adb.exe\" -s emulator-5554 shell am start -n io.github.c1921.mosswriter/.MainActivity)",
+      "Bash(\"/d/Android/Sdk/platform-tools/adb.exe\" -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk)"
+    ]
+  }
+}
